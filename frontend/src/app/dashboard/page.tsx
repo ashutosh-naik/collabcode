@@ -1,12 +1,23 @@
 ﻿'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { api } from '@/lib/api';
+
+interface MeResponse {
+  id: string;
+  email: string;
+  username: string;
+  name: string;
+}
 
 export default function DashboardPage() {
   const { user, isLoading, logout } = useAuth();
   const router = useRouter();
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !user) {
@@ -14,12 +25,20 @@ export default function DashboardPage() {
     }
   }, [isLoading, user, router]);
 
-  if (isLoading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-950">
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    );
+  useEffect(() => {
+    if (user) {
+      api
+        .get<MeResponse>('/users/me')
+        .then((res) => setMe(res.data))
+        .catch(() => {
+          // interceptor handles redirect on 401; nothing else to do here
+        })
+        .finally(() => setFetching(false));
+    }
+  }, [user]);
+
+  if (isLoading || !user || fetching) {
+    return <LoadingSpinner />;
   }
 
   return (
@@ -36,9 +55,9 @@ export default function DashboardPage() {
         </div>
 
         <div className="rounded-md border border-gray-800 bg-gray-900 p-4">
-          <p className="text-white">Welcome, {user.name}!</p>
+          <p className="text-white">Welcome, {me?.name ?? user.name}!</p>
           <p className="mt-1 text-sm text-gray-400">
-            @{user.username} - {user.email}
+            @{me?.username ?? user.username} - {me?.email ?? user.email}
           </p>
         </div>
       </div>
